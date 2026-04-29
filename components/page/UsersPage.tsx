@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, MoreVertical, Shield, User as UserIcon } from 'lucide-react';
+import { Search, MoreVertical, Shield, User as UserIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { exportToCSV } from '@/lib/export-utils';
 import { toast } from 'sonner';
-import { Edit, Trash2, Eye, UserX, Download } from 'lucide-react';
+import { Edit, Eye, UserX, Download } from 'lucide-react';
 
 interface User {
   id: number;

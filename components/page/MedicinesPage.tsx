@@ -211,7 +211,7 @@ export function MedicinesPage() {
                         </div>
                         <p className="text-lg font-medium text-foreground">No medicines found</p>
                         <p className="text-sm text-muted-foreground">
-                          Try adjusting your search or filters to find what you're looking for.
+                          Try adjusting your search or filters to find what you&apos;re looking for.
                         </p>
                         {searchQuery && (
                           <Button

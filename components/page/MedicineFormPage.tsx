@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 export function MedicineFormPage() {
   const router = useRouter();
@@ -82,10 +81,11 @@ export function MedicineFormPage() {
       
       router.push('/medicines');
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding medicine:', error);
+      const message = error instanceof Error ? error.message : 'Please try again later.';
       toast.error('Failed to add medicine', {
-        description: error.message || 'Please try again later.',
+        description: message,
       });
     } finally {
       setIsLoading(false);
