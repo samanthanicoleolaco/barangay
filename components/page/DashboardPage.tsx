@@ -18,33 +18,35 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  const fetchData = async () => {
-    setLoading(true);
-    
-    // Fetch medicines for summary cards and chart
-    const { data: medData, error: medError } = await supabase
-      .from('medicines')
-      .select('*');
-
-    // Fetch recent transactions
-    const { data: transData, error: transError } = await supabase
-      .from('stock_transactions')
-      .select('*, medicine:medicines(name)')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (medError) console.error('Error fetching medicines:', medError);
-    else setMedicines(medData || []);
-
-    if (transError) console.error('Error fetching transactions:', transError);
-    else setTransactions(transData || []);
-
-    setLoading(false);
-  };
-
   useEffect(() => {
+    let isMounted = true;
+    const fetchData = async () => {
+      // Fetch medicines for summary cards and chart
+      const { data: medData, error: medError } = await supabase
+        .from('medicines')
+        .select('*');
+
+      // Fetch recent transactions
+      const { data: transData, error: transError } = await supabase
+        .from('stock_transactions')
+        .select('*, medicine:medicines(name)')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (!isMounted) return;
+
+      if (medError) console.error('Error fetching medicines:', medError);
+      else setMedicines(medData || []);
+
+      if (transError) console.error('Error fetching transactions:', transError);
+      else setTransactions(transData || []);
+
+      setLoading(false);
+    };
+
     fetchData();
-  }, []);
+    return () => { isMounted = false; };
+  }, [supabase]);
 
   // Calculate statistics
   const getStockStatus = (quantity: number, reorderLevel: number): 'safe' | 'low' | 'critical' | 'out' => {
@@ -82,7 +84,7 @@ export function DashboardPage() {
     return (
       <div className="h-[80vh] flex flex-col items-center justify-center gap-4">
         <Loader2 className="size-10 text-primary animate-spin" />
-        <p className="text-muted-foreground">Sinasaliksik ang pinakahuling impormasyon...</p>
+        <p className="text-muted-foreground">Fetching the latest information...</p>
       </div>
     );
   }
@@ -97,7 +99,7 @@ export function DashboardPage() {
       >
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Maligayang pagbabalik, Barangay Health Worker</p>
+          <p className="text-sm text-muted-foreground mt-1">Welcome back, Barangay Health Worker</p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarIcon className="size-4" />
@@ -167,8 +169,8 @@ export function DashboardPage() {
             <CardTitle>Inventory Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[300px] w-full min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%" debounce={100}>
                 <BarChart data={stockData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
                   <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} />
@@ -233,7 +235,7 @@ export function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((transaction, index) => (
+                  {transactions.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell className="text-foreground">{transaction.medicine?.name}</TableCell>
                       <TableCell className="text-foreground">{transaction.type}</TableCell>
@@ -281,8 +283,8 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[250px] w-full min-h-[250px]">
+              <ResponsiveContainer width="100%" height="100%" debounce={100}>
                 <LineChart data={usageData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
                   <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 12 }} />

@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,20 +13,83 @@ import { Textarea } from '@/components/ui/textarea';
 
 export function MedicineFormPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    description: '',
     unit: '',
     quantity: '',
     reorderLevel: '',
     expiryDate: '',
-    status: 'safe',
   });
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/medicines');
+    setIsLoading(true);
+
+    const qty = parseInt(formData.quantity);
+    const reorder = parseInt(formData.reorderLevel);
+
+    if (isNaN(qty) || isNaN(reorder)) {
+      toast.error('Invalid input', {
+        description: 'Quantity and Reorder Level must be valid numbers.',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Insert medicine
+      const { data: medicineData, error: medicineError } = await supabase
+        .from('medicines')
+        .insert({
+          name: formData.name,
+          category: formData.category,
+          unit: formData.unit,
+          quantity: qty,
+          reorder_level: reorder,
+          expiry_date: formData.expiryDate || null,
+        })
+        .select()
+        .single();
+
+      if (medicineError) {
+        console.error('Supabase Medicine Error:', medicineError);
+        throw new Error(medicineError.message || 'Failed to insert medicine');
+      }
+
+      if (!medicineData) {
+        throw new Error('No data returned from medicine insertion');
+      }
+
+      // 2. Add an initial stock transaction
+      const { error: transactionError } = await supabase
+        .from('stock_transactions')
+        .insert({
+          medicine_id: medicineData.id,
+          type: 'Stock In',
+          quantity: qty,
+        });
+
+      if (transactionError) {
+        console.warn('Initial transaction failed (non-critical):', transactionError);
+      }
+
+      toast.success('Medicine added successfully!', {
+        description: `${formData.name} has been added to the inventory.`,
+      });
+      
+      router.push('/medicines');
+      router.refresh();
+    } catch (error: any) {
+      console.error('Error adding medicine:', error);
+      toast.error('Failed to add medicine', {
+        description: error.message || 'Please try again later.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -92,20 +157,6 @@ export function MedicineFormPage() {
                 </Select>
               </div>
 
-              <div className="lg:col-span-2">
-                <label htmlFor="description" className="block text-sm mb-1.5 text-foreground">
-                  Description
-                </label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Brief description of the medicine"
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
 
               <div>
                 <label htmlFor="unit" className="block text-sm mb-1.5 text-foreground">
@@ -185,8 +236,15 @@ export function MedicineFormPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                Save Medicine
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Medicine'
+                )}
               </Button>
             </div>
           </form>

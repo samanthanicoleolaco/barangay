@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Download, Edit, Eye, Loader2 } from 'lucide-react';
+import { Search, Plus, Download, Edit, Eye, Loader2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import type { Medicine } from '@/types/database';
+import { exportToCSV } from '@/lib/export-utils';
+import { toast } from 'sonner';
 
-const MotionTableRow = motion(TableRow);
+const MotionTableRow = motion.create(TableRow);
 
 export function MedicinesPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -22,24 +24,27 @@ export function MedicinesPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const supabase = createClient();
 
-  const fetchMedicines = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('medicines')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching medicines:', error);
-    } else {
-      setMedicines(data || []);
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
+    let isMounted = true;
+    const fetchMedicines = async () => {
+      const { data, error } = await supabase
+        .from('medicines')
+        .select('*')
+        .order('name');
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error('Error fetching medicines:', error);
+      } else {
+        setMedicines(data || []);
+      }
+      setLoading(false);
+    };
+
     fetchMedicines();
-  }, []);
+    return () => { isMounted = false; };
+  }, [supabase]);
 
   const getStockStatus = (quantity: number, reorderLevel: number): 'safe' | 'low' | 'critical' | 'out' => {
     if (quantity === 0) return 'out';
@@ -48,19 +53,25 @@ export function MedicinesPage() {
     return 'safe';
   };
 
-  const filteredMedicines = medicines.filter((med) => {
-    const status = getStockStatus(med.quantity, med.reorder_level);
-    const matchesSearch = med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (med.category?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+  const filteredMedicines = medicines.filter((medicine) => {
+    const matchesSearch = medicine.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (medicine.category?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    const status = getStockStatus(medicine.quantity, medicine.reorder_level);
     const matchesFilter = filterStatus === 'all' || status === filterStatus;
+    
     return matchesSearch && matchesFilter;
   });
+
+  const handleExport = () => {
+    exportToCSV(medicines, 'inventory_report');
+    toast.success('Inventory exported successfully');
+  };
 
   if (loading) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
         <Loader2 className="size-8 text-primary animate-spin" />
-        <p className="text-muted-foreground animate-pulse font-medium">Inihahanda ang iyong imbentaryo...</p>
+        <p className="text-muted-foreground animate-pulse font-medium">Preparing your inventory...</p>
       </div>
     );
   }
@@ -75,22 +86,18 @@ export function MedicinesPage() {
       >
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Medicine Inventory</h1>
-          <p className="text-sm text-muted-foreground mt-1">{medicines.length} na gamot sa imbakan</p>
+          <p className="text-sm text-muted-foreground mt-1">{medicines.length} medicines in stock</p>
         </div>
         <div className="flex gap-2">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button variant="outline">
-              <Download className="size-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          </motion.div>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="size-4" />
+            <span>Export</span>
+          </Button>
           <Link href="/medicines/add">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button>
-                <Plus className="size-4" />
-                <span>Add Medicine</span>
-              </Button>
-            </motion.div>
+            <Button>
+              <Plus className="size-4" />
+              <span>Add Medicine</span>
+            </Button>
           </Link>
         </div>
       </motion.div>
@@ -108,8 +115,16 @@ export function MedicinesPage() {
             placeholder="Search medicines..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-10"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+            >
+              <X className="size-4 text-muted-foreground" />
+            </button>
+          )}
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="sm:w-[180px]">
@@ -159,7 +174,7 @@ export function MedicinesPage() {
                       <TableCell className="font-medium text-foreground">{medicine.name}</TableCell>
                       <TableCell className="text-foreground">{medicine.category}</TableCell>
                       <TableCell className="text-foreground">{medicine.unit}</TableCell>
-                      <TableCell className="text-foreground">{medicine.quantity}</TableCell>
+                      <TableCell className="text-foreground font-semibold">{medicine.quantity}</TableCell>
                       <TableCell className="text-muted-foreground">{medicine.reorder_level}</TableCell>
                       <TableCell className="text-muted-foreground">{medicine.expiry_date}</TableCell>
                       <TableCell>
@@ -173,12 +188,12 @@ export function MedicinesPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                            <Button variant="ghost" size="icon" className="size-8">
+                            <Button variant="ghost" size="icon" className="size-8 hover:text-primary">
                               <Eye className="size-4" />
                             </Button>
                           </motion.div>
                           <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                            <Button variant="ghost" size="icon" className="size-8">
+                            <Button variant="ghost" size="icon" className="size-8 hover:text-primary">
                               <Edit className="size-4" />
                             </Button>
                           </motion.div>
@@ -187,6 +202,30 @@ export function MedicinesPage() {
                     </MotionTableRow>
                   );
                 })}
+                {filteredMedicines.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="p-4 rounded-full bg-muted">
+                          <Search className="size-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-lg font-medium text-foreground">No medicines found</p>
+                        <p className="text-sm text-muted-foreground">
+                          Try adjusting your search or filters to find what you're looking for.
+                        </p>
+                        {searchQuery && (
+                          <Button
+                            variant="link"
+                            onClick={() => setSearchQuery('')}
+                            className="mt-2"
+                          >
+                            Clear all searches
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -267,6 +306,29 @@ export function MedicinesPage() {
             </motion.div>
           );
         })}
+        {filteredMedicines.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-20 text-center"
+          >
+            <div className="p-4 rounded-full bg-muted inline-block mb-4">
+              <Search className="size-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-medium text-foreground">No medicines found</p>
+            <p className="text-sm text-muted-foreground mb-6">
+              Adjust your search or filters.
+            </p>
+            {searchQuery && (
+              <Button
+                variant="outline"
+                onClick={() => setSearchQuery('')}
+              >
+                Clear search
+              </Button>
+            )}
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );

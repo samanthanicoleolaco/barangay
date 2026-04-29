@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Filter, Calendar, Search, Download, Loader2 } from 'lucide-react';
+import { Plus, Calendar, Search, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { exportToCSV } from '@/lib/export-utils';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -43,7 +45,7 @@ const mockTransactions: Transaction[] = [
   { id: '6', medicine: 'Metformin 500mg', type: 'Expired', quantity: 15, date: '2026-04-09', time: '11:30', remarks: 'Expired batch removed', staff: 'Maria Santos' },
 ];
 
-const MotionTableRow = motion(TableRow);
+const MotionTableRow = motion.create(TableRow);
 
 export function TransactionsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,6 +59,11 @@ export function TransactionsPage() {
     return matchesFilter && matchesSearch;
   });
 
+  const handleExport = () => {
+    exportToCSV(mockTransactions, 'transaction_history');
+    toast.success('Transaction history exported successfully');
+  };
+
   return (
     <div className="p-4 lg:p-8 space-y-6">
       <motion.div
@@ -66,10 +73,10 @@ export function TransactionsPage() {
       >
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Stock Transactions</h1>
-          <p className="text-sm text-muted-foreground mt-1">Subaybayan ang lahat ng paggalaw ng gamot</p>
+          <p className="text-sm text-muted-foreground mt-1">Track all medicine movements</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="hidden sm:flex">
+          <Button variant="outline" className="hidden sm:flex" onClick={handleExport}>
             <Download className="size-4" />
             <span>Export</span>
           </Button>

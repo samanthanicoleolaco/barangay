@@ -1,19 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Database, Play, Eraser, AlertCircle, CheckCircle2, Loader2, Table as TableIcon, FileJson } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SQLEditorPage() {
   const [query, setQuery] = useState('SELECT * FROM medicines LIMIT 5;');
-  const [results, setResults] = useState<any[] | null>(null);
+  const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'table' | 'json'>('table');
@@ -40,8 +39,8 @@ export default function SQLEditorPage() {
       } else {
         setResults(data);
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -164,7 +163,7 @@ $$;`}
                       Query Results ({results.length} rows)
                     </CardTitle>
                   </div>
-                  <Tabs defaultValue="table" className="w-[200px]" onValueChange={(v) => setView(v as any)}>
+                  <Tabs defaultValue="table" className="w-[200px]" onValueChange={(v) => setView(v as 'table' | 'json')}>
                     <TabsList className="grid w-full grid-cols-2 h-8">
                       <TabsTrigger value="table" className="text-xs">
                         <TableIcon className="h-3 w-3 mr-1.5" />
@@ -195,7 +194,7 @@ $$;`}
                             {results.length > 0 ? (
                               results.map((row, i) => (
                                 <TableRow key={i} className="hover:bg-emerald-50/50 transition-colors">
-                                  {Object.values(row).map((val: any, j) => (
+                                  {Object.values(row).map((val: unknown, j) => (
                                     <TableCell key={j} className="text-slate-600">
                                       {val === null ? (
                                         <span className="text-slate-300 italic">null</span>

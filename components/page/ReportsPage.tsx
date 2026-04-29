@@ -4,6 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Download, Calendar, Package } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { exportToCSV } from '@/lib/export-utils';
+import { toast } from 'sonner';
 
 const monthlyUsage = [
   { id: 'jan', month: 'Jan', usage: 450 },
@@ -36,6 +38,11 @@ const expiringMedicines = [
 ];
 
 export function ReportsPage() {
+  const handleExport = () => {
+    exportToCSV(topMedicines, 'top_usage_report');
+    toast.success('Report exported successfully');
+  };
+
   return (
     <div className="p-4 lg:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -48,7 +55,7 @@ export function ReportsPage() {
             <Calendar className="size-4" />
             <span className="hidden sm:inline">Date Range</span>
           </Button>
-          <Button>
+          <Button onClick={handleExport}>
             <Download className="size-4" />
             <span>Export Report</span>
           </Button>
@@ -92,7 +99,7 @@ export function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" debounce={100}>
                 <BarChart data={monthlyUsage}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
                   <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 12 }} />
@@ -120,7 +127,7 @@ export function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" debounce={100}>
                 <PieChart>
                   <Pie
                     data={categoryUsage}
